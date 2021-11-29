@@ -86,6 +86,15 @@ namespace carrot_planner{
       bool makePlan(const geometry_msgs::PoseStamped& start, 
           const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan);
 
+      /**
+        * @brief Given an array of poses in the world, compute a plan using the default tolerance
+        * @param waypoints Poses to plan through
+        * @param plan The plan... filled by the planner
+        * @return True if a valid plan was found, false otherwise
+        */
+      bool makePlan(const geometry_msgs::PoseArray& waypoints,
+                    std::vector<geometry_msgs::PoseStamped>& plan);
+
     private:
       costmap_2d::Costmap2DROS* costmap_ros_;
       double step_size_, min_dist_from_robot_;

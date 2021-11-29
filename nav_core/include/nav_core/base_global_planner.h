@@ -38,6 +38,7 @@
 #define NAV_CORE_BASE_GLOBAL_PLANNER_H
 
 #include <geometry_msgs/PoseStamped.h>
+#include <geometry_msgs/PoseArray.h>
 #include <costmap_2d/costmap_2d_ros.h>
 
 namespace nav_core {
@@ -72,6 +73,16 @@ namespace nav_core {
         cost = 0;
         return makePlan(start, goal, plan);
       }
+
+      /**
+        * @brief Given an array of poses in the world, compute a plan using the default tolerance
+        * @param waypoints Poses to plan through
+        * @param plan The plan... filled by the planner
+        * @return True if a valid plan was found, false otherwise
+        */
+      virtual bool makePlan(const geometry_msgs::PoseArray& waypoints,
+                            std::vector<geometry_msgs::PoseStamped>& plan) = 0;
+
 
       /**
        * @brief  Initialization function for the BaseGlobalPlanner

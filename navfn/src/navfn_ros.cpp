@@ -190,6 +190,36 @@ namespace navfn {
     wy = costmap_->getOriginY() + my * costmap_->getResolution();
   }
 
+  bool NavfnROS::makePlan(const geometry_msgs::PoseArray& waypoints,
+                              std::vector<geometry_msgs::PoseStamped>& plan) {
+      return makePlan(waypoints, default_tolerance_, plan);
+  }
+
+  bool NavfnROS::makePlan(const geometry_msgs::PoseArray& waypoints, double tolerance,
+                               std::vector<geometry_msgs::PoseStamped>& full_plan) {
+      geometry_msgs::PoseStamped start;
+      geometry_msgs::PoseStamped goal;
+      size_t index = 0;
+      start.pose = waypoints.poses.at(index);
+      start.header = waypoints.header;
+
+      for (size_t index = 1; index < waypoints.poses.size(); index++) {
+          goal.pose = waypoints.poses.at(index);
+          goal.header = waypoints.header;
+
+          std::vector<geometry_msgs::PoseStamped> plan;
+          if (!makePlan(start, goal, tolerance, plan)) {
+              return false;
+          }
+
+          full_plan.insert(full_plan.end(), plan.begin(), plan.end());
+
+          start = goal;
+      }
+
+      return true;
+  }
+
   bool NavfnROS::makePlan(const geometry_msgs::PoseStamped& start, 
       const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan){
     return makePlan(start, goal, default_tolerance_, plan);

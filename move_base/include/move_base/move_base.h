@@ -99,7 +99,7 @@ namespace move_base {
        * @param goal A reference to the goal to pursue
        * @return True if processing of the goal is done, false otherwise
        */
-      bool executeCycle(geometry_msgs::PoseStamped& goal);
+      bool executeCycle(geometry_msgs::PoseArray& goal);
 
     private:
       /**
@@ -124,7 +124,7 @@ namespace move_base {
        * @param  plan Will be filled in with the plan made by the planner
        * @return  True if planning succeeds, false otherwise
        */
-      bool makePlan(const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan);
+      bool makePlan(const geometry_msgs::PoseArray& goal, std::vector<geometry_msgs::PoseStamped>& plan);
 
       /**
        * @brief  Load the recovery behaviors for the navigation stack from the parameter server
@@ -163,11 +163,17 @@ namespace move_base {
 
       bool isQuaternionValid(const geometry_msgs::Quaternion& q);
 
+      bool isGoalValid(const geometry_msgs::PoseStamped& goal_pose_msg);
+
+      bool isGoalValid(const geometry_msgs::PoseArray& goal_array_msg);
+
       bool getRobotPose(geometry_msgs::PoseStamped& global_pose, costmap_2d::Costmap2DROS* costmap);
 
       double distance(const geometry_msgs::PoseStamped& p1, const geometry_msgs::PoseStamped& p2);
 
       geometry_msgs::PoseStamped goalToGlobalFrame(const geometry_msgs::PoseStamped& goal_pose_msg);
+
+      geometry_msgs::PoseArray goalToGlobalFrame(const geometry_msgs::PoseArray& goal_array_msg);
 
       /**
        * @brief This is used to wake the planner at periodic intervals.
@@ -219,7 +225,7 @@ namespace move_base {
       bool runPlanner_;
       boost::recursive_mutex planner_mutex_;
       boost::condition_variable_any planner_cond_;
-      geometry_msgs::PoseStamped planner_goal_;
+      geometry_msgs::PoseArray planner_goal_;
       boost::thread* planner_thread_;
 
 

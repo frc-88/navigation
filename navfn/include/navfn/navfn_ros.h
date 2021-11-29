@@ -111,6 +111,27 @@ namespace navfn {
       bool makePlan(const geometry_msgs::PoseStamped& start, 
           const geometry_msgs::PoseStamped& goal, double tolerance, std::vector<geometry_msgs::PoseStamped>& plan);
 
+
+      /**
+        * @brief Given an array of poses in the world, compute a plan
+        * @param waypoints Poses to plan through
+        * @param tolerance The tolerance on the goal points for the planner
+        * @param plan The plan... filled by the planner
+        * @return True if a valid plan was found, false otherwise
+        */
+      bool makePlan(const geometry_msgs::PoseArray& waypoints, double tolerance,
+                    std::vector<geometry_msgs::PoseStamped>& plan);
+
+
+      /**
+        * @brief Given an array of poses in the world, compute a plan using the default tolerance
+        * @param waypoints Poses to plan through
+        * @param plan The plan... filled by the planner
+        * @return True if a valid plan was found, false otherwise
+        */
+      bool makePlan(const geometry_msgs::PoseArray& waypoints,
+                    std::vector<geometry_msgs::PoseStamped>& plan);
+
       /**
        * @brief  Computes the full navigation function for the map given a point in the world to start from
        * @param world_point The point to use for seeding the navigation function 

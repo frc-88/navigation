@@ -94,7 +94,7 @@ namespace move_base {
 
     //for commanding the base
     vel_pub_ = nh.advertise<geometry_msgs::Twist>("cmd_vel", 1);
-    current_goal_pub_ = private_nh.advertise<geometry_msgs::PoseStamped>("current_goal", 0 );
+    current_goal_pub_ = private_nh.advertise<geometry_msgs::PoseArray>("current_goal", 0 );
 
     ros::NodeHandle action_nh("move_base");
     action_goal_pub_ = action_nh.advertise<move_base_msgs::MoveBaseActionGoal>("goal", 1);
@@ -276,7 +276,12 @@ namespace move_base {
     ROS_DEBUG_NAMED("move_base","In ROS goal callback, wrapping the PoseStamped in the action message and re-sending to the server.");
     move_base_msgs::MoveBaseActionGoal action_goal;
     action_goal.header.stamp = ros::Time::now();
-    action_goal.goal.target_pose = *goal;
+    geometry_msgs::PoseArray goals;
+    goals.header = goal->header;
+    goals.poses.insert(goals.poses.begin(), goal->pose);
+    ROS_INFO_NAMED("move_base", "Sending simple goal with pose X=%0.2f, Y=%0.2f", goal->pose.position.x, goal->pose.position.y);
+
+    action_goal.goal.target_poses = goals;
 
     action_goal_pub_.publish(action_goal);
   }
@@ -471,7 +476,7 @@ namespace move_base {
     tc_.reset();
   }
 
-  bool MoveBase::makePlan(const geometry_msgs::PoseStamped& goal, std::vector<geometry_msgs::PoseStamped>& plan){
+  bool MoveBase::makePlan(const geometry_msgs::PoseArray& input_goal, std::vector<geometry_msgs::PoseStamped>& plan){
     boost::unique_lock<costmap_2d::Costmap2D::mutex_t> lock(*(planner_costmap_ros_->getCostmap()->getMutex()));
 
     //make sure to set the plan to be empty initially
@@ -490,11 +495,15 @@ namespace move_base {
       return false;
     }
 
-    const geometry_msgs::PoseStamped& start = global_pose;
+    geometry_msgs::PoseArray goal;
+    goal.header = input_goal.header;
+    goal.poses = input_goal.poses;
+
+    goal.poses.insert(goal.poses.begin(), global_pose.pose);
 
     //if the planner fails or returns a zero length plan, planning failed
-    if(!planner_->makePlan(start, goal, plan) || plan.empty()){
-      ROS_DEBUG_NAMED("move_base","Failed to find a  plan to point (%.2f, %.2f)", goal.pose.position.x, goal.pose.position.y);
+    if(!planner_->makePlan(goal, plan) || plan.empty()){
+      ROS_DEBUG_NAMED("move_base", "Failed to find a plan. Plan was length %ld", goal.poses.size());
       return false;
     }
 
@@ -507,6 +516,22 @@ namespace move_base {
     cmd_vel.linear.y = 0.0;
     cmd_vel.angular.z = 0.0;
     vel_pub_.publish(cmd_vel);
+  }
+
+
+  bool MoveBase::isGoalValid(const geometry_msgs::PoseStamped& goal_pose_msg)
+  {
+    return isQuaternionValid(goal_pose_msg.pose.orientation);
+  }
+
+  bool MoveBase::isGoalValid(const geometry_msgs::PoseArray& goal_array_msg)
+  {
+    for (size_t index = 0; index < goal_array_msg.poses.size(); index++) {
+      if (!isQuaternionValid(goal_array_msg.poses.at(index).orientation)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   bool MoveBase::isQuaternionValid(const geometry_msgs::Quaternion& q){
@@ -537,6 +562,21 @@ namespace move_base {
     }
 
     return true;
+  }
+
+  geometry_msgs::PoseArray MoveBase::goalToGlobalFrame(const geometry_msgs::PoseArray& goal_array_msg) {
+    size_t length = goal_array_msg.poses.size();
+    geometry_msgs::PoseArray global_pose_array;
+    global_pose_array.poses.resize(length);
+    global_pose_array.header = goal_array_msg.header;
+    
+    for (size_t index = 0; index < length; index++) {
+      geometry_msgs::PoseStamped pose;
+      pose.header = goal_array_msg.header;
+      pose.pose = goal_array_msg.poses.at(index);
+      global_pose_array.poses.at(index) = goalToGlobalFrame(pose).pose;
+    }
+    return goal_array_msg;
   }
 
   geometry_msgs::PoseStamped MoveBase::goalToGlobalFrame(const geometry_msgs::PoseStamped& goal_pose_msg){
@@ -583,7 +623,7 @@ namespace move_base {
       ros::Time start_time = ros::Time::now();
 
       //time to plan! get a copy of the goal and unlock the mutex
-      geometry_msgs::PoseStamped temp_goal = planner_goal_;
+      geometry_msgs::PoseArray temp_goal = planner_goal_;
       lock.unlock();
       ROS_DEBUG_NAMED("move_base_plan_thread","Planning...");
 
@@ -650,12 +690,14 @@ namespace move_base {
 
   void MoveBase::executeCb(const move_base_msgs::MoveBaseGoalConstPtr& move_base_goal)
   {
-    if(!isQuaternionValid(move_base_goal->target_pose.pose.orientation)){
+    if(!isGoalValid(move_base_goal->target_poses)){
       as_->setAborted(move_base_msgs::MoveBaseResult(), "Aborting on goal because it was sent with an invalid quaternion");
       return;
     }
 
-    geometry_msgs::PoseStamped goal = goalToGlobalFrame(move_base_goal->target_pose);
+    ROS_INFO_NAMED("move_base", "1 Received goal with length %ld", move_base_goal->target_poses.poses.size());
+    geometry_msgs::PoseArray goal = goalToGlobalFrame(move_base_goal->target_poses);
+    ROS_INFO_NAMED("move_base", "2 Received goal with length %ld", move_base_goal->target_poses.poses.size());
 
     publishZeroVelocity();
     //we have a goal so start the planner
@@ -695,12 +737,12 @@ namespace move_base {
           //if we're active and a new goal is available, we'll accept it, but we won't shut anything down
           move_base_msgs::MoveBaseGoal new_goal = *as_->acceptNewGoal();
 
-          if(!isQuaternionValid(new_goal.target_pose.pose.orientation)){
+          if(!isGoalValid(new_goal.target_poses)){
             as_->setAborted(move_base_msgs::MoveBaseResult(), "Aborting on goal because it was sent with an invalid quaternion");
             return;
           }
 
-          goal = goalToGlobalFrame(new_goal.target_pose);
+          goal = goalToGlobalFrame(new_goal.target_poses);
 
           //we'll make sure that we reset our state for the next execution cycle
           recovery_index_ = 0;
@@ -714,7 +756,7 @@ namespace move_base {
           lock.unlock();
 
           //publish the goal point to the visualizer
-          ROS_DEBUG_NAMED("move_base","move_base has received a goal of x: %.2f, y: %.2f", goal.pose.position.x, goal.pose.position.y);
+          ROS_DEBUG_NAMED("move_base","move_base has received a goal of length %ld", goal.poses.size());
           current_goal_pub_.publish(goal);
 
           //make sure to reset our timeouts and counters
@@ -752,7 +794,7 @@ namespace move_base {
         lock.unlock();
 
         //publish the goal point to the visualizer
-        ROS_DEBUG_NAMED("move_base","The global frame for move_base has changed, new frame: %s, new goal position x: %.2f, y: %.2f", goal.header.frame_id.c_str(), goal.pose.position.x, goal.pose.position.y);
+        ROS_DEBUG_NAMED("move_base","The global frame for move_base has changed, new frame: %s, new goal length: %ld", goal.header.frame_id.c_str(), goal.poses.size());
         current_goal_pub_.publish(goal);
 
         //make sure to reset our timeouts and counters
@@ -799,7 +841,7 @@ namespace move_base {
     return hypot(p1.pose.position.x - p2.pose.position.x, p1.pose.position.y - p2.pose.position.y);
   }
 
-  bool MoveBase::executeCycle(geometry_msgs::PoseStamped& goal){
+  bool MoveBase::executeCycle(geometry_msgs::PoseArray& goal){
     boost::recursive_mutex::scoped_lock ecl(configuration_mutex_);
     //we need to be able to publish velocity commands
     geometry_msgs::Twist cmd_vel;

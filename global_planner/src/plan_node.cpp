@@ -46,7 +46,6 @@ namespace rm = geometry_msgs;
 
 using std::vector;
 using rm::PoseStamped;
-using rm::PoseArray;
 using std::string;
 using cm::Costmap2D;
 using cm::Costmap2DROS;
@@ -60,10 +59,9 @@ class PlannerWithCostmap : public GlobalPlanner {
 
     private:
         void poseCallback(const rm::PoseStamped::ConstPtr& goal);
-        void poseArrayCallback(const rm::PoseArray::ConstPtr& goal);
         Costmap2DROS* cmap_;
         ros::ServiceServer make_plan_service_;
-        ros::Subscriber pose_sub_, waypoints_sub_;
+        ros::Subscriber pose_sub_;
 };
 
 bool PlannerWithCostmap::makePlanService(navfn::MakeNavPlan::Request& req, navfn::MakeNavPlan::Response& resp) {
@@ -87,35 +85,12 @@ void PlannerWithCostmap::poseCallback(const rm::PoseStamped::ConstPtr& goal) {
     makePlan(global_pose, *goal, path);
 }
 
-
-void PlannerWithCostmap::poseArrayCallback(const rm::PoseArray::ConstPtr& waypoints) {
-    geometry_msgs::PoseStamped start_pose;
-    cmap_->getRobotPose(start_pose);
-    vector<PoseStamped> full_path;
-
-    for (size_t index = 0; index < waypoints->poses.size(); index++)
-    {
-        geometry_msgs::PoseStamped goal_pose;
-        goal_pose.header = waypoints->header;
-        goal_pose.pose = waypoints->poses.at(index);
-
-        vector<PoseStamped> path;
-        makePlan(start_pose, goal_pose, path);
-
-        full_path.insert(full_path.end(), path.begin(), path.end());
-
-        start_pose = goal_pose;
-    }
-}
-
-
 PlannerWithCostmap::PlannerWithCostmap(string name, Costmap2DROS* cmap) :
         GlobalPlanner(name, cmap->getCostmap(), cmap->getGlobalFrameID()) {
     ros::NodeHandle private_nh("~");
     cmap_ = cmap;
     make_plan_service_ = private_nh.advertiseService("make_plan", &PlannerWithCostmap::makePlanService, this);
     pose_sub_ = private_nh.subscribe<rm::PoseStamped>("goal", 1, &PlannerWithCostmap::poseCallback, this);
-    waypoints_sub_ = private_nh.subscribe<rm::PoseArray>("waypoints", 1, &PlannerWithCostmap::poseArrayCallback, this);
 }
 
 } // namespace
