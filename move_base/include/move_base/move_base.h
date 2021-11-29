@@ -156,6 +156,7 @@ namespace move_base {
       void resetState();
 
       void goalCB(const geometry_msgs::PoseStamped::ConstPtr& goal);
+      void waypointsCB(const geometry_msgs::PoseArray::ConstPtr& goal);
 
       void planThread();
 
@@ -201,7 +202,7 @@ namespace move_base {
       uint32_t planning_retries_;
       double conservative_reset_dist_, clearing_radius_;
       ros::Publisher current_goal_pub_, vel_pub_, action_goal_pub_, recovery_status_pub_;
-      ros::Subscriber goal_sub_;
+      ros::Subscriber goal_sub_, waypoint_sub_;
       ros::ServiceServer make_plan_srv_, clear_costmaps_srv_;
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_;
       bool make_plan_clear_costmap_, make_plan_add_unreachable_goal_;

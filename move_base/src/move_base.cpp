@@ -105,6 +105,7 @@ namespace move_base {
     //like nav_view and rviz
     ros::NodeHandle simple_nh("move_base_simple");
     goal_sub_ = simple_nh.subscribe<geometry_msgs::PoseStamped>("goal", 1, boost::bind(&MoveBase::goalCB, this, _1));
+    waypoint_sub_ = simple_nh.subscribe<geometry_msgs::PoseArray>("waypoints", 1, boost::bind(&MoveBase::waypointsCB, this, _1));
 
     //we'll assume the radius of the robot to be consistent with what's specified for the costmaps
     private_nh.param("local_costmap/inscribed_radius", inscribed_radius_, 0.325);
@@ -282,6 +283,18 @@ namespace move_base {
     ROS_INFO_NAMED("move_base", "Sending simple goal with pose X=%0.2f, Y=%0.2f", goal->pose.position.x, goal->pose.position.y);
 
     action_goal.goal.target_poses = goals;
+
+    action_goal_pub_.publish(action_goal);
+  }
+
+  void MoveBase::waypointsCB(const geometry_msgs::PoseArray::ConstPtr& goal) {
+    ROS_DEBUG_NAMED("move_base","In ROS goal callback, wrapping the PoseArray in the action message and re-sending to the server.");
+    move_base_msgs::MoveBaseActionGoal action_goal;
+    action_goal.header.stamp = ros::Time::now();
+    ROS_INFO_NAMED("move_base", "Sending simple goal with length %ld", goal->poses.size());
+
+    action_goal.goal.target_poses.header = goal->header;
+    action_goal.goal.target_poses.poses = goal->poses;
 
     action_goal_pub_.publish(action_goal);
   }
@@ -695,9 +708,8 @@ namespace move_base {
       return;
     }
 
-    ROS_INFO_NAMED("move_base", "1 Received goal with length %ld", move_base_goal->target_poses.poses.size());
     geometry_msgs::PoseArray goal = goalToGlobalFrame(move_base_goal->target_poses);
-    ROS_INFO_NAMED("move_base", "2 Received goal with length %ld", move_base_goal->target_poses.poses.size());
+    ROS_DEBUG_NAMED("move_base", "Received goal with length %ld", move_base_goal->target_poses.poses.size());
 
     publishZeroVelocity();
     //we have a goal so start the planner

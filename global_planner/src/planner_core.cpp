@@ -212,7 +212,9 @@ bool GlobalPlanner::worldToMap(double wx, double wy, double& mx, double& my) {
 
 bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geometry_msgs::PoseStamped& goal,
                            std::vector<geometry_msgs::PoseStamped>& plan) {
-    return makePlan(start, goal, default_tolerance_, plan);
+    bool success = makePlan(start, goal, default_tolerance_, plan);
+    publishPlan(plan);
+    return success;
 }
 
 
@@ -243,6 +245,9 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseArray& waypoints, double t
 
         start = goal;
     }
+
+    // publish the plan for visualization purposes
+    publishPlan(full_plan);
 
     return true;
 }
@@ -348,8 +353,6 @@ bool GlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start, const geom
     // add orientations if needed
     orientation_filter_->processPath(start, plan);
 
-    //publish the plan for visualization purposes
-    publishPlan(plan);
     delete[] potential_array_;
     return !plan.empty();
 }
