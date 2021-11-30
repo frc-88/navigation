@@ -534,11 +534,17 @@ namespace move_base {
 
   bool MoveBase::isGoalValid(const geometry_msgs::PoseStamped& goal_pose_msg)
   {
+    if (goal_pose_msg.header.frame_id.compare(global_frame_) != 0) {
+      return false;
+    }
     return isQuaternionValid(goal_pose_msg.pose.orientation);
   }
 
   bool MoveBase::isGoalValid(const geometry_msgs::PoseArray& goal_array_msg)
   {
+    if (goal_array_msg.header.frame_id.compare(global_frame_) != 0) {
+      return false;
+    }
     for (size_t index = 0; index < goal_array_msg.poses.size(); index++) {
       if (!isQuaternionValid(goal_array_msg.poses.at(index).orientation)) {
         return false;
@@ -703,14 +709,25 @@ namespace move_base {
 
   void MoveBase::executeCb(const move_base_msgs::MoveBaseGoalConstPtr& move_base_goal)
   {
-    if(!isGoalValid(move_base_goal->target_poses)){
-      as_->setAborted(move_base_msgs::MoveBaseResult(), "Aborting on goal because it was sent with an invalid quaternion");
+    bool is_array_valid = isGoalValid(move_base_goal->target_poses);
+    bool is_pose_valid = isGoalValid(move_base_goal->target_pose);
+    if (!is_array_valid && !is_pose_valid){
+      as_->setAborted(move_base_msgs::MoveBaseResult(), "Aborting on goal because both target_poses and target_pose are invalid");
       return;
     }
 
-    geometry_msgs::PoseArray goal = goalToGlobalFrame(move_base_goal->target_poses);
-    ROS_DEBUG_NAMED("move_base", "Received goal with length %ld", move_base_goal->target_poses.poses.size());
-
+    geometry_msgs::PoseArray goal;
+    if (is_array_valid) {
+      goal = goalToGlobalFrame(move_base_goal->target_poses);
+      ROS_DEBUG_NAMED("move_base", "Received goal with length %ld", move_base_goal->target_poses.poses.size());
+    }
+    else if (is_pose_valid) {
+      geometry_msgs::PoseStamped target_pose = goalToGlobalFrame(move_base_goal->target_pose);
+      goal.header = target_pose.header;
+      goal.poses.insert(goal.poses.begin(), target_pose.pose);
+      ROS_DEBUG_NAMED("move_base", "Received goal pose");
+    }
+    
     publishZeroVelocity();
     //we have a goal so start the planner
     boost::unique_lock<boost::recursive_mutex> lock(planner_mutex_);
