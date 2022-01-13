@@ -948,7 +948,7 @@ namespace move_base {
           planner_cond_.notify_one();
         }
         ROS_DEBUG_NAMED("move_base","Waiting for plan, in the planning state.");
-        break;
+        // break;  // hack to allow moving targets. See: https://answers.ros.org/question/28950/what-is-the-best-way-to-follow-a-moving-target/
 
       //if we're controlling, we'll attempt to find valid velocity commands
       case CONTROLLING:
