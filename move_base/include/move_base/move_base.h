@@ -207,6 +207,7 @@ namespace move_base {
       bool shutdown_costmaps_, clearing_rotation_allowed_, recovery_behavior_enabled_;
       bool make_plan_clear_costmap_, make_plan_add_unreachable_goal_;
       double oscillation_timeout_, oscillation_distance_;
+      bool plan_then_control_;
 
       MoveBaseState state_;
       RecoveryTrigger recovery_trigger_;

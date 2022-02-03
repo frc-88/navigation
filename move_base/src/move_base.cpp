@@ -76,6 +76,7 @@ namespace move_base {
     private_nh.param("planner_patience", planner_patience_, 5.0);
     private_nh.param("controller_patience", controller_patience_, 15.0);
     private_nh.param("max_planning_retries", max_planning_retries_, -1);  // disabled by default
+    private_nh.param("plan_then_control", plan_then_control_, true);
 
     private_nh.param("oscillation_timeout", oscillation_timeout_, 0.0);
     private_nh.param("oscillation_distance", oscillation_distance_, 0.5);
@@ -948,7 +949,9 @@ namespace move_base {
           planner_cond_.notify_one();
         }
         ROS_DEBUG_NAMED("move_base","Waiting for plan, in the planning state.");
-        // break;  // hack to allow moving targets. See: https://answers.ros.org/question/28950/what-is-the-best-way-to-follow-a-moving-target/
+        if (!plan_then_control_) {
+          break;  // hack to allow moving targets. See: https://answers.ros.org/question/28950/what-is-the-best-way-to-follow-a-moving-target/
+        }
 
       //if we're controlling, we'll attempt to find valid velocity commands
       case CONTROLLING:
