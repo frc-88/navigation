@@ -167,7 +167,7 @@ void StaticLayer::incomingMap(const nav_msgs::OccupancyGridConstPtr& new_map)
 {
   unsigned int size_x = new_map->info.width, size_y = new_map->info.height;
 
-  ROS_DEBUG("Received a %d X %d map at %f m/pix", size_x, size_y, new_map->info.resolution);
+  ROS_INFO("Received a new %d X %d map at %f m/pix", size_x, size_y, new_map->info.resolution);
 
   // resize costmap if size, resolution or origin do not match
   Costmap2D* master = layered_costmap_->getCostmap();
@@ -250,9 +250,9 @@ void StaticLayer::activate()
 
 void StaticLayer::deactivate()
 {
-  map_sub_.shutdown();
-  if (subscribe_to_updates_)
-    map_update_sub_.shutdown();
+  // map_sub_.shutdown();
+  // if (subscribe_to_updates_)
+  //   map_update_sub_.shutdown();
 }
 
 void StaticLayer::reset()
